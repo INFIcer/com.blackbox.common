@@ -1,0 +1,19 @@
+{
+  "name": "com.blackbox.common",
+  "version": "1.0.0",
+  "displayName": "Common",
+  "description": "BlackBox Plug-in Common",
+  "unity": "2019.3",
+  "unityRelease": "8f1",
+  "dependencies": {},
+  "keywords": [
+    "keyword1",
+    "keyword2",
+    "keyword3"
+  ],
+  "author": {
+    "name": "BlackBox",
+    "email": "unity@example.com",
+    "url": "https://www.unity3d.com"
+  }
+}

@@ -1,0 +1,17 @@
+{
+    "name": "BlackBox.Common.Editor",
+    "references": [
+        "GUID:cbfdaed4590de844e8003163a18e3180"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_EDITOR"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
