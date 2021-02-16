@@ -8,49 +8,121 @@ using UnityEngine;
 [CustomPropertyDrawer(typeof(FindObjectByTypeAttribute))]
 public class FindObjectByTypeAttributeDrawer : PropertyDrawer
 {
-    public Type type;
+    FindObjectByTypeAttribute Att;
+    //public Type type;
     bool init;
+    bool error;
+    public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+    {
+        return base.GetPropertyHeight(property, label) + (error ? 2 : 0) * EditorGUIUtility.singleLineHeight;
+    }
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
-
+        position.height = EditorGUIUtility.singleLineHeight;
         if (!init)
         {
-            FindObjectByTypeAttribute Att = (FindObjectByTypeAttribute)attribute;
-
-            //var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-            //var typesList = (from a in assemblies
-            //                 select a.GetTypes()).ToList();
-            //var types = new List<Type>();
-            //foreach (var t in typesList)
-            //{
-            //    types = types.Union(t).ToList();
-            //}
-            //var types = Framework.AllTypes;
-            //获取所有类
-            type = Att.type;
-            //type = types.Find((t) => t.Name == Att.type.Name);//找到成员类
+            Att = (FindObjectByTypeAttribute)attribute;
             init = true;
         }
 
 
         EditorGUI.BeginProperty(position, label, property);
         {
-            UnityEngine.Component obj;
+            var ObjectPosition = new Rect(position) { width = position.width - 35 };
+
+            var ButtonPosition = new Rect(position) { x = ObjectPosition.xMax, width = 35 };
+
+
+            UnityEngine.Object obj;
             if (property.objectReferenceValue)
-                obj = (UnityEngine.Component)EditorGUI.ObjectField(position, label, property.objectReferenceValue, typeof(UnityEngine.Component), true);
+                obj = (UnityEngine.Object)EditorGUI.ObjectField(Att.button ? ObjectPosition : position, label, property.objectReferenceValue, typeof(UnityEngine.Object), true);
             else
-                obj = (UnityEngine.Component)EditorGUI.ObjectField(position, label, null, typeof(UnityEngine.Component), true);
+                obj = (UnityEngine.Object)EditorGUI.ObjectField(Att.button ? ObjectPosition : position, label, null, typeof(UnityEngine.Object), true);
+            if (Att.button)
+            {
+
+                if (obj == null)
+                {
+                    if (GUI.Button(ButtonPosition, "+"))
+                    {
+                        if (Att.overrideAddFuncName != "")
+                        {
+                            //foreach (var m in property.serializedObject.targetObject.GetType().GetMethods())
+                            //    Debug.Log(m.Name);
+                            //Debug.Log("=======================");
+                            //foreach (var m in property.serializedObject.targetObject.GetType().GetRuntimeMethods())
+                            //    Debug.Log(m.Name);
+                            //Debug.Log(property.serializedObject.targetObject);
+                            obj = (UnityEngine.Object)property.serializedObject.targetObject.GetType().GetRuntimeMethods().ToList().Find((x) => x.Name == (Att.overrideAddFuncName)).Invoke(property.serializedObject.targetObject, new object[] { property.serializedObject.targetObject.GetType(), property });
+                            //property.serializedObject.ApplyModifiedProperties();
+                        }
+                        else
+                            EditorFramework.Menu(
+                               Att.type.SelectInRelatedSubTypes((x) => !x.IsAbstract && (x.IsSubclassOf(typeof(Component))), (x2) => x2),
+                                (type) => { return type; },
+                                (o) =>
+                                {
+                                    var type = o as Type;
+                                    if (type.IsSubclassOf(typeof(Component)))
+                                    {
+                                        obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, type);
+                                        property.objectReferenceValue = obj;
+                                        property.serializedObject.ApplyModifiedProperties();
+                                        //Debug.Log(obj);
+                                    }
+                                    //else if (type.IsSubclassOf(typeof(ScriptableObject)))
+                                    //{
+
+                                    //    obj = ScriptableObject.CreateInstance(type);
+                                    //    Undo.RegisterCreatedObjectUndo(obj, "Create " + obj.name);
+                                    //        // obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, type);
+                                    //        property.objectReferenceValue = obj;
+                                    //    property.serializedObject.ApplyModifiedProperties();
+                                    //    Debug.Log(obj);
+                                    //}
+
+                                }
+                                );
+                        //obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, Att.type);
+                    }
+                }
+                else
+                {
+                    if (GUI.Button(ButtonPosition, "╳"))
+                    {
+                        Undo.DestroyObjectImmediate(obj);
+                    }
+                }
+            }
+            if (error)
+            {
+                position.y += EditorGUIUtility.singleLineHeight;
+                position.height = 2 * EditorGUIUtility.singleLineHeight;
+                EditorGUI.HelpBox(position, "对象类型不匹配", MessageType.Error);
+            }
+
+
             if (obj == null)
+            {
+                property.objectReferenceValue = null;
                 return;
+            }
             Type t = obj.GetType();
             if (
-                (type.IsInterface && t.GetInterface(type.Name) != null && t.IsClass)
-            || (type.IsSubclassOf(typeof(Attribute)) && t.IsDefined(type))
-            || (t.IsSubclassOf(type))
+                t.isRelatedSubTypeOf(Att.type)
+            //    (Att.type.IsInterface && t.GetInterface(Att.type.Name) != null)//obj是一个实现了Att接口的类的实例
+            //|| (Att.type.IsSubclassOf(typeof(Attribute)) && t.IsDefined(Att.type))//obj是一个挂载了Att特性的类的实例
+            //|| t.IsSubclassOf(Att.type)//obj是一个Att子类的实例
+            //|| t == Att.type//obj是一个Att类的实例
             )
             {
                 property.objectReferenceValue = obj;
+                error = false;
+            }
+            else
+            {
+                error = true;
+                //Debug.LogError("对象类型不匹配");
             }
         }
         EditorGUI.EndProperty();

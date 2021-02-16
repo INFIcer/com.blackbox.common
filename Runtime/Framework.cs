@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 
+
 public static class Framework
 {
     //public static int TerrainLayer { get => LayerMask.GetMask("Land", "Water"); }
@@ -280,6 +281,11 @@ public static class Framework
         }
         return origin + maxDistance * direction;
     }
+    public static Vector3 ProjectionPosition(Vector3 origin, Vector3 destination, int layerMask, float safeDistance = 0, int Fineness = 3)
+    {
+        var direction = destination - origin;
+        return ProjectionPosition(origin, direction.normalized, direction.magnitude, layerMask, safeDistance, Fineness);
+    }
     public static Vector3 ProjectionPosition(Ray ray, float maxDistance, int layerMask, float safeDistance = 0, int Fineness = 3)
     {
         RaycastHit[] result = new RaycastHit[Fineness];
@@ -401,6 +407,26 @@ public static class Framework
             yield return new WaitForEndOfFrame();
         }
     }
+    public class BinaryStateCoroutine : IEnumerable
+    {
+        public System.Func<bool> WhenEnter;
+        public System.Action enter;
+        public System.Action inside;
+        public System.Func<bool> WhenExit;
+        public System.Action exit;
+        public System.Action outside;
+        public virtual IEnumerator GetEnumerator()
+        {
+            return BinaryState(WhenEnter, enter, inside, WhenExit, exit, outside);
+        }
+    }
+    public class FixedBinaryStateCoroutine : BinaryStateCoroutine, IEnumerable
+    {
+        public override IEnumerator GetEnumerator()
+        {
+            return FixedBinaryState(WhenEnter, enter, inside, WhenExit, exit, outside);
+        }
+    }
     public static Vector3 ProjectionPosition(Vector3 origin, Vector3 direction, out RaycastHit[] result, float maxDistance, int layerMask, float safeDistance = 0, int Fineness = 3)
     {
         result = new RaycastHit[Fineness];
@@ -432,12 +458,13 @@ public static class Framework
     }
     static List<Type> _AllTypes;
     static bool AllTypesInit;
-    public delegate T2 SelectFunc<out T2, T>(T t);
+
     public static bool isRelatedSubTypeOf(this Type t, Type type)
     => (type.IsInterface && t.GetInterface(type.Name) != null && t.IsClass)
             || (type.IsSubclassOf(typeof(Attribute)) && t.IsDefined(type))
-            || (t.IsSubclassOf(type));
-    public static List<T> SelectInRelatedSubTypes<T>(this Type type, SelectFunc<T, Type> selectFunc)
+            || (t.IsSubclassOf(type))
+            || (t == type);
+    public static List<T> SelectInRelatedSubTypes<T>(this Type type, Predicate<Type> predicate, Func<Type, T> selectFunc)
     {
         var types = AllTypes;
 
@@ -446,28 +473,38 @@ public static class Framework
 
         List<T> results = new List<T>();
         foreach (var t in types)
-            if (t.isRelatedSubTypeOf(type))
+            if (t.isRelatedSubTypeOf(type) && predicate(t))
                 results.Add(selectFunc(t));
-        //if (type.IsInterface)
-        //{
-        //    foreach (var t in types)
-        //        if (t.GetInterface(type.Name) != null && t.IsClass)
-        //            results.Add(selectFunc(t));
-        //}
-        //else if (type.IsSubclassOf(typeof(Attribute)))
-        //{
-        //    foreach (var t in types)
-        //        if (t.IsDefined(type))
-        //            results.Add(selectFunc(t));
-        //}
-        //else
-        //{
-        //    foreach (var t in types)
-        //        if (t.IsSubclassOf(type))
-        //            results.Add(selectFunc(t));
-        //}
         return results;
     }
+    public static List<Type> SelectInRelatedSubTypes(this Type type)
+    {
+        var types = AllTypes;
+
+        //获取所有类
+        //var type = types.Find((t) => { return predicate(t); });//找到成员类
+
+        List<Type> results = new List<Type>();
+        foreach (var t in types)
+            if (t.isRelatedSubTypeOf(type))
+                results.Add(t);
+        return results;
+    }
+    //public static List<Type> SelectInRelatedSubTypes(this Type type, Predicate<Type> predicate)
+    //{
+    //    var types = AllTypes;
+
+    //    //获取所有类
+    //    //var type = types.Find((t) => { return predicate(t); });//找到成员类
+
+    //    List<Type> results = new List<Type>();
+    //    foreach (var t in types)
+    //        if (t.isRelatedSubTypeOf(type)&& predicate(t))
+    //            results.Add(t);
+    //    return results;
+    //}
+
+
     //public static List<string> FindTypeNamesByType(string typeName)
     //{
     //    var assemblies = AppDomain.CurrentDomain.GetAssemblies();

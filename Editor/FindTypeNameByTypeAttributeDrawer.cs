@@ -15,7 +15,7 @@ public class FindTypeNameByTypeAttributeDrawer : PropertyDrawer
         FindTypeNameByTypeAttribute Att = (FindTypeNameByTypeAttribute)attribute;
         if (!init)
         {
-            results = Att.type.SelectInRelatedSubTypes((t) => t.Name);
+            results = Att.type.SelectInRelatedSubTypes((p)=>true,(t) => t.Name);
             init = true;
         }
 
