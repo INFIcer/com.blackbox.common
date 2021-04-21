@@ -24,15 +24,38 @@ public class FindObjectByTypeAttributeDrawer : PropertyDrawer
             Att = (FindObjectByTypeAttribute)attribute;
             init = true;
         }
-
-
+        error = false;
+        DrawProperty(position, property, label);
+        if (error)
+        {
+            position.y += EditorGUIUtility.singleLineHeight;
+            position.height = 2 * EditorGUIUtility.singleLineHeight;
+            EditorGUI.HelpBox(position, "对象类型不匹配", MessageType.Error);
+        }
+        //property.serializedObject.ApplyModifiedProperties();
+    }
+    public void DrawProperty(Rect position, SerializedProperty property, GUIContent label)
+    {
+        if (property.isArray)
+            DrawArray(position, property, label);
+        else
+            DrawElement(position, property, label);
+    }
+    public void DrawArray(Rect position, SerializedProperty property, GUIContent label)
+    {
+        EditorGUI.BeginProperty(position, label, property);
+        {
+            for(int i=0;i< property.arraySize;i++)
+                DrawProperty(position, property.GetArrayElementAtIndex(i), label);
+        }
+        EditorGUI.EndProperty();
+    }
+    public void DrawElement(Rect position, SerializedProperty property, GUIContent label)
+    {
         EditorGUI.BeginProperty(position, label, property);
         {
             var ObjectPosition = new Rect(position) { width = position.width - 35 };
-
             var ButtonPosition = new Rect(position) { x = ObjectPosition.xMax, width = 35 };
-
-
             UnityEngine.Object obj;
             if (property.objectReferenceValue)
                 obj = (UnityEngine.Object)EditorGUI.ObjectField(Att.button ? ObjectPosition : position, label, property.objectReferenceValue, typeof(UnityEngine.Object), true);
@@ -68,20 +91,20 @@ public class FindObjectByTypeAttributeDrawer : PropertyDrawer
                                         obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, type);
                                         property.objectReferenceValue = obj;
                                         property.serializedObject.ApplyModifiedProperties();
-                                        //Debug.Log(obj);
-                                    }
-                                    //else if (type.IsSubclassOf(typeof(ScriptableObject)))
-                                    //{
-
-                                    //    obj = ScriptableObject.CreateInstance(type);
-                                    //    Undo.RegisterCreatedObjectUndo(obj, "Create " + obj.name);
-                                    //        // obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, type);
-                                    //        property.objectReferenceValue = obj;
-                                    //    property.serializedObject.ApplyModifiedProperties();
-                                    //    Debug.Log(obj);
-                                    //}
-
+                                    //Debug.Log(obj);
                                 }
+                                //else if (type.IsSubclassOf(typeof(ScriptableObject)))
+                                //{
+
+                                //    obj = ScriptableObject.CreateInstance(type);
+                                //    Undo.RegisterCreatedObjectUndo(obj, "Create " + obj.name);
+                                //        // obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, type);
+                                //        property.objectReferenceValue = obj;
+                                //    property.serializedObject.ApplyModifiedProperties();
+                                //    Debug.Log(obj);
+                                //}
+
+                            }
                                 );
                         //obj = Undo.AddComponent((property.serializedObject.targetObject as Component).gameObject, Att.type);
                     }
@@ -94,12 +117,7 @@ public class FindObjectByTypeAttributeDrawer : PropertyDrawer
                     }
                 }
             }
-            if (error)
-            {
-                position.y += EditorGUIUtility.singleLineHeight;
-                position.height = 2 * EditorGUIUtility.singleLineHeight;
-                EditorGUI.HelpBox(position, "对象类型不匹配", MessageType.Error);
-            }
+
 
 
             if (obj == null)
@@ -117,7 +135,7 @@ public class FindObjectByTypeAttributeDrawer : PropertyDrawer
             )
             {
                 property.objectReferenceValue = obj;
-                error = false;
+                
             }
             else
             {
@@ -126,6 +144,5 @@ public class FindObjectByTypeAttributeDrawer : PropertyDrawer
             }
         }
         EditorGUI.EndProperty();
-        //property.serializedObject.ApplyModifiedProperties();
     }
 }

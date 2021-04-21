@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 public class FindObjectByTypeAttribute : PropertyAttribute
@@ -14,8 +15,9 @@ public class FindObjectByTypeAttribute : PropertyAttribute
         this.type = type;
         //this.ignoreSelf = ignoreSelf;
         this.button = button;
+        this.overrideAddFuncName = "";
     }
-
+    //Func<Type, SerializedProperty, UnityEngine.Object>
     public FindObjectByTypeAttribute(Type type, string overrideAddFuncName)
     {
         this.type = type;

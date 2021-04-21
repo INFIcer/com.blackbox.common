@@ -9,7 +9,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
-
+using UnityEngine.Events;
 
 public static class Framework
 {
@@ -87,6 +87,11 @@ public static class Framework
         return value + dir(offest) * Mathf.Min(Mathf.Abs(offest), Mathf.Abs(approachValue));
     }
     public static Vector2 Approach(Vector2 value, Vector2 stableValue, float approachValue)
+    {
+        var offest = stableValue - value;
+        return value + offest.normalized * Mathf.Min(offest.magnitude, approachValue);
+    }
+    public static Vector3 Approach(Vector3 value, Vector3 stableValue, float approachValue)
     {
         var offest = stableValue - value;
         return value + offest.normalized * Mathf.Min(offest.magnitude, approachValue);
@@ -274,6 +279,7 @@ public static class Framework
     public static Vector3 ProjectionPosition(Vector3 origin, Vector3 direction, float maxDistance, int layerMask, float safeDistance = 0, int Fineness = 3)
     {
         RaycastHit[] result = new RaycastHit[Fineness];
+        origin -= direction * safeDistance;
         var len = Physics.RaycastNonAlloc(origin, direction, result, maxDistance + safeDistance, layerMask);
         if (len > 0)
         {
@@ -289,6 +295,7 @@ public static class Framework
     public static Vector3 ProjectionPosition(Ray ray, float maxDistance, int layerMask, float safeDistance = 0, int Fineness = 3)
     {
         RaycastHit[] result = new RaycastHit[Fineness];
+        ray.origin -= ray.direction * safeDistance;
         var len = Physics.RaycastNonAlloc(ray, result, maxDistance + safeDistance, layerMask);
         if (len > 0)
         {
@@ -299,10 +306,23 @@ public static class Framework
     public static GameObject ProjectionObject(Ray ray, float maxDistance, int layerMask, float safeDistance = 0, int Fineness = 3)
     {
         RaycastHit[] result = new RaycastHit[Fineness];
+        ray.origin -= ray.direction * safeDistance;
         var len = Physics.RaycastNonAlloc(ray, result, maxDistance + safeDistance, layerMask);
         if (len > 0)
         {
             return result[Framework.findMinIndex(result, len)].collider.gameObject;
+        }
+        return null;
+    }
+
+    public static RaycastHit? ProjectionRaycastHit(Ray ray, float maxDistance, int layerMask, float safeDistance = 0, int Fineness = 3)
+    {
+        RaycastHit[] result = new RaycastHit[Fineness];
+        ray.origin -= ray.direction * safeDistance;
+        var len = Physics.RaycastNonAlloc(ray, result, maxDistance + safeDistance, layerMask);
+        if (len > 0)
+        {
+            return result[Framework.findMinIndex(result, len)];
         }
         return null;
     }
@@ -460,7 +480,7 @@ public static class Framework
     static bool AllTypesInit;
 
     public static bool isRelatedSubTypeOf(this Type t, Type type)
-    => (type.IsInterface && t.GetInterface(type.Name) != null && t.IsClass)
+    => (type.IsInterface && Array.Exists(t.GetInterfaces(), (e) => e == type) && t.IsClass)
             || (type.IsSubclassOf(typeof(Attribute)) && t.IsDefined(type))
             || (t.IsSubclassOf(type))
             || (t == type);
@@ -582,5 +602,72 @@ public static class Framework
             res[i] = data[i + startIndex];
         data = null;
         return res;
+    }
+
+    [Serializable]
+    public class EnumEventTable : ISerializationCallbackReceiver
+    {
+
+        [Serializable]
+        private class Entry
+        {
+
+#pragma warning disable 0649
+            [SerializeField]
+            public int enumValue;
+
+            [SerializeField]
+            public UnityEvent callback;
+#pragma warning restore 0649
+        }
+
+        //The actual serialized list of entries
+        [SerializeField]
+        private List<Entry> _entries = new List<Entry>();
+
+        //Not serialized, is just populated after deserialization and used
+        //when calling Invoke for speed.
+        private Dictionary<int, UnityEvent> _entryMap = new Dictionary<int, UnityEvent>();
+
+        public bool HasUnityEvent(int enumValue)
+        {
+            UnityEvent callback;
+            if (_entryMap.TryGetValue(enumValue, out callback))
+            {
+                return callback.GetPersistentEventCount() > 0;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public void Invoke(int enumValue)
+        {
+            UnityEvent callback;
+            if (_entryMap.TryGetValue(enumValue, out callback))
+            {
+                callback.Invoke();
+            }
+        }
+
+        public void OnBeforeSerialize() { }
+
+        public void OnAfterDeserialize()
+        {
+            if (_entryMap == null)
+            {
+                _entryMap = new Dictionary<int, UnityEvent>();
+            }
+            else
+            {
+                _entryMap.Clear();
+            }
+
+            foreach (var entry in _entries)
+            {
+                _entryMap[entry.enumValue] = entry.callback;
+            }
+        }
     }
 }
